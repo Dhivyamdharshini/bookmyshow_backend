@@ -14,12 +14,12 @@ app.use(express.json());
 
 app.get("/movie/get-movies", async (req, res) => {
   try {
-    const client = new MongoClient(URL, {}).connect();
-    let db = (await client).db(DB_NAME);
-    let collection = await db.collection(COLLECTION_NAME);
+    const client = await MongoClient.connect(URL);
+    let db = client.db(DB_NAME);
+    let collection = db.collection(COLLECTION_NAME);
 
     let movies = await collection.find({}).toArray();
-    (await client).close();
+    client.close();
 
     res.json(movies);
   } catch (error) {
@@ -32,12 +32,12 @@ app.get("/movie/:id", async (req, res) => {
   try {
     const id = req.params.id;
 
-    const client = new MongoClient(URL, {}).connect();
-    let db = (await client).db(DB_NAME);
-    let collection = await db.collection(COLLECTION_NAME);
+    const client = await MongoClient.connect(URL);
+    let db = client.db(DB_NAME);
+    let collection = db.collection(COLLECTION_NAME);
 
     let movie = await collection.findOne({ _id: id }); // Use custom ID directly
-    (await client).close();
+    client.close();
 
     if (!movie) {
       return res.status(404).json({ message: "Movie not found" });
@@ -53,6 +53,8 @@ app.get("/movie/:id", async (req, res) => {
 app.post("/movie/book-movie", async (req, res) => {
   let bookingRequest = req.body;
 
+  console.log("Booking Request:", bookingRequest); // Log incoming request
+
   if (
     !bookingRequest.movieId ||
     !bookingRequest.showId ||
@@ -61,25 +63,30 @@ app.post("/movie/book-movie", async (req, res) => {
     !bookingRequest.email ||
     !bookingRequest.phoneNumber
   ) {
+    console.log("Error: Some fields are missing");
     return res.status(401).json({ message: "Some fields are missing" });
   }
 
   let requestedSeat = parseInt(bookingRequest.seats);
 
   if (isNaN(requestedSeat) || requestedSeat <= 0) {
+    console.log("Error: Invalid seat count");
     return res.status(401).json({ message: "Invalid seat count" });
   }
 
   try {
-    const client = new MongoClient(URL, {}).connect();
-    let db = (await client).db(DB_NAME);
-    let dbcollection = await db.collection(COLLECTION_NAME);
+    const client = await MongoClient.connect(URL);
+    let db = client.db(DB_NAME);
+    let dbcollection = db.collection(COLLECTION_NAME);
 
     let movie = await dbcollection.findOne({
       _id: bookingRequest.movieId,
     });
 
+    console.log("Retrieved Movie:", movie); // Log retrieved movie
+
     if (!movie) {
+      console.log("Error: Requested movie is not found");
       return res.status(404).json({ message: "Requested movie is not found" });
     }
 
@@ -87,11 +94,15 @@ app.post("/movie/book-movie", async (req, res) => {
       .flat()
       .find((s) => s.id === bookingRequest.showId);
 
+    console.log("Retrieved Show:", show); // Log retrieved show
+
     if (!show) {
+      console.log("Error: Show not Found");
       return res.status(404).json({ message: "Show not Found" });
     }
 
     if (parseInt(show.seats) < requestedSeat) {
+      console.log("Error: Not enough seats available");
       return res.status(404).json({ message: "Not enough seats available" });
     }
 
@@ -124,13 +135,16 @@ app.post("/movie/book-movie", async (req, res) => {
       }
     );
 
+    console.log("Update Result:", updatedResult); // Log update result
+
     if (updatedResult.modifiedCount === 0) {
+      console.log("Error: Failed to update");
       return res.status(500).json({ message: "Failed to update" });
     }
 
     return res.status(200).json({ message: "Booking created successfully" });
   } catch (error) {
-    console.log(error);
+    console.error("Error during booking:", error);
     return res.status(500).json({ message: "Something went wrong" });
   }
 });
@@ -141,19 +155,20 @@ app.post("/movie/add-movie", async (req, res) => {
   newMovie._id = uuidv4(); // Assign custom UUID as ID
 
   try {
-    const client = new MongoClient(URL, {}).connect();
-    let db = (await client).db(DB_NAME);
+    const client = await MongoClient.connect(URL);
     
-    let collection = await db.collection(COLLECTION_NAME);
+    let db = client.db(DB_NAME);
+    
+    let collection = db.collection(COLLECTION_NAME);
     
     await collection.insertOne(newMovie);
     
-    (await client).close();
+   client.close();
 
-    res.status(201).json({ message: "Movie added successfully", movie: newMovie });
+   res.status(201).json({ message: "Movie added successfully", movie: newMovie });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Something went wrong" });
+   console.log(error);
+   res.status(500).json({ message: "Something went wrong" });
   }
 });
 
