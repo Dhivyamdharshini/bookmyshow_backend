@@ -22,11 +22,11 @@ app.get("/movie/get-movies", async (req, res) => {
 
     const movies = await collection.find({}).toArray();
     res.json(movies);
-
-    await client.close();
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Something went wrong" });
+  } finally {
+    await client.close();
   }
 });
 
@@ -46,7 +46,6 @@ app.get("/movie/:id", async (req, res) => {
     const collection = db.collection(COLLECTION_NAME);
 
     const movie = await collection.findOne({ _id: new ObjectId(id) });
-    await client.close();
 
     if (!movie) {
       return res.status(404).json({ message: "Movie not found" });
@@ -56,6 +55,8 @@ app.get("/movie/:id", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Something went wrong" });
+  } finally {
+    await client.close();
   }
 });
 
@@ -97,7 +98,6 @@ app.post("/movie/book-movie", async (req, res) => {
     });
 
     if (!movie) {
-      await client.close();
       return res.status(404).json({ message: "Requested movie not found" });
     }
 
@@ -107,13 +107,11 @@ app.post("/movie/book-movie", async (req, res) => {
       .find((s) => s.id === bookingRequest.showId);
 
     if (!show) {
-      await client.close();
       return res.status(404).json({ message: "Show not found" });
     }
 
     // Check seat availability
     if (parseInt(show.seats) < requestedSeat) {
-      await client.close();
       return res.status(400).json({ message: "Not enough seats available" });
     }
 
@@ -141,8 +139,6 @@ app.post("/movie/book-movie", async (req, res) => {
       }
     );
 
-    await client.close();
-
     if (updatedResult.modifiedCount === 0) {
       return res.status(500).json({ message: "Failed to update" });
     }
@@ -151,6 +147,8 @@ app.post("/movie/book-movie", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Something went wrong" });
+  } finally {
+    await client.close();
   }
 });
 
