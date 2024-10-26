@@ -32,13 +32,14 @@ app.get("/movie/get-movies", async (req, res) => {
 
 // Get a movie by ID
 app.get("/movie/:id", async (req, res) => {
+  const id = req.params.id;
+
+  // Check if the provided ID is a valid ObjectId
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid ID format" });
+  }
+
   try {
-    const id = req.params.id;
-
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid ID format" });
-    }
-
     const client = new MongoClient(URL);
     await client.connect();
     const db = client.db(DB_NAME);
@@ -71,19 +72,20 @@ app.post("/movie/book-movie", async (req, res) => {
     !bookingRequest.email ||
     !bookingRequest.phoneNumber
   ) {
-    return res.status(401).json({ message: "Some fields are missing" });
+    return res.status(400).json({ message: "Some fields are missing" });
   }
 
   const requestedSeat = parseInt(bookingRequest.seats);
   if (isNaN(requestedSeat) || requestedSeat <= 0) {
-    return res.status(401).json({ message: "Invalid seat count" });
+    return res.status(400).json({ message: "Invalid seat count" });
+  }
+
+  // Check if the provided movieId is a valid ObjectId
+  if (!ObjectId.isValid(bookingRequest.movieId)) {
+    return res.status(400).json({ message: "Invalid Movie ID format" });
   }
 
   try {
-    if (!ObjectId.isValid(bookingRequest.movieId)) {
-      return res.status(400).json({ message: "Invalid Movie ID format" });
-    }
-
     const client = new MongoClient(URL);
     await client.connect();
     const db = client.db(DB_NAME);
@@ -112,7 +114,7 @@ app.post("/movie/book-movie", async (req, res) => {
     // Check seat availability
     if (parseInt(show.seats) < requestedSeat) {
       await client.close();
-      return res.status(404).json({ message: "Not enough seats available" });
+      return res.status(400).json({ message: "Not enough seats available" });
     }
 
     // Update available seats and add booking
@@ -153,6 +155,6 @@ app.post("/movie/book-movie", async (req, res) => {
 });
 
 // Start server
-app.listen(8000, () => {
-  console.log("Server is running on port 8000");
+app.listen(process.env.PORT || 8000, () => {
+  console.log("Server is running on port", process.env.PORT || 8000);
 });
